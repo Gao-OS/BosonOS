@@ -1,0 +1,11 @@
+/result
+/result-*
+/.direnv/
+/.envrc
+
+/src/runtime/_build/
+/src/runtime/deps/
+/src/runtime/.elixir_ls/
+
+/src/gluon/.zig-cache/
+/src/gluon/zig-out/
