@@ -46,6 +46,7 @@
               profile
               ;
           };
+          rk3566PowkiddyRgb30Image = pkgs.callPackage ./nix/images/rk3566-powkiddy-rgb30.nix { };
           qemuApp = mkQemuApp {
             image = qemuImage;
             inherit target;
@@ -70,6 +71,7 @@
             boson-runtime = runtime;
             boson-rootfs = rootfs;
             boson-qemu-image = qemuImage;
+            rk3566-powkiddy-rgb30-image = rk3566PowkiddyRgb30Image;
             boson-system = bosonSystem;
             default = qemuImage;
           };

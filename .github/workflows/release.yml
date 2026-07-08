@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (for example, 0.1.0 or v0.1.0)"
+        required: true
+        type: string
+      git_ref:
+        description: "Git ref to release from"
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Normalize release inputs
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          version="${version#v}"
+          if [[ -z "$version" ]]; then
+            echo "::error::version must not be empty"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+          fetch-depth: 0
+
+      - name: Create release page
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          GIT_REF: ${{ inputs.git_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists"
+            exit 1
+          fi
+
+          gh release create "$TAG" \
+            --target "$GIT_REF" \
+            --title "$TAG" \
+            --generate-notes

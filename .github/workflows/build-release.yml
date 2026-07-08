@@ -1,0 +1,108 @@
+name: Build Release Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version whose GitHub Release receives the image"
+        required: true
+        type: string
+      device_id:
+        description: "Device id to build: qemu-x86_64 or rk3566-powkiddy-rgb30"
+        required: true
+        default: "qemu-x86_64"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.version }}-${{ inputs.device_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-release:
+    name: Build and Upload Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Normalize release inputs
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          version="${version#v}"
+          device_id="${{ inputs.device_id }}"
+
+          if [[ -z "$version" ]]; then
+            echo "::error::version must not be empty"
+            exit 1
+          fi
+
+          case "$device_id" in
+            qemu-x86_64)
+              package_attr="boson-qemu-image"
+              ;;
+            rk3566-powkiddy-rgb30)
+              package_attr="rk3566-powkiddy-rgb30-image"
+              ;;
+            *)
+              echo "::error::Unsupported device_id '$device_id'"
+              echo "Supported device ids: qemu-x86_64, rk3566-powkiddy-rgb30"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "device_id=$device_id"
+            echo "package_attr=$package_attr"
+            echo "artifact_prefix=bosonos-$device_id-v$version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build OS image
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          out_link="result-${{ steps.release.outputs.device_id }}"
+
+          nix build ".#${{ steps.release.outputs.package_attr }}" \
+            --override-input nixpkgs github:NixOS/nixpkgs/nixos-unstable \
+            --print-build-logs \
+            --out-link "$out_link"
+
+          mkdir -p dist
+          tar -C "$out_link" \
+            -czf "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
+            .
+          sha256sum "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
+            > "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz.sha256"
+
+      - name: Upload image to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG does not exist. Run the Release workflow first."
+            exit 1
+          fi
+
+          gh release upload "$TAG" dist/* --clobber
