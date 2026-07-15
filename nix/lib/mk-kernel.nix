@@ -1,21 +1,21 @@
 { runCommand }:
 
 {
-  name ? "boson-kernel-stub",
+  name ? "boson-kernel",
   target,
-  version ? "todo",
+  kernelPackage,
+  version ? kernelPackage.version,
 }:
 
 runCommand name { } ''
-  mkdir -p "$out/share/boson/kernel"
-  cat > "$out/share/boson/kernel/README" <<README
-  BosonOS kernel placeholder
+  install -Dm644 \
+    ${kernelPackage}/${target.kernelTarget} \
+    "$out/${target.kernelTarget}"
 
-  Target: ${target.name or "unknown"}
-  Version: ${version}
-
-  This first milestone keeps the kernel derivation as an explicit TODO.
-  Real target kernels will be built through mkKernel without making the
-  target runtime a NixOS system.
-  README
+  cat > "$out/manifest.txt" <<MANIFEST
+  type=boson-kernel
+  target=${target.name or "unknown"}
+  version=${version}
+  kernel=${target.kernelTarget}
+  MANIFEST
 ''

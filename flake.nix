@@ -26,7 +26,10 @@
           mkQemuApp = pkgs.callPackage ./nix/lib/mk-qemu-app.nix { };
 
           gluon = pkgs.callPackage ./nix/packages/gluon.nix { };
-          runtime = pkgs.callPackage ./nix/packages/runtime.nix { };
+          runtime = pkgs.callPackage ./nix/packages/runtime.nix {
+            elixir = pkgs.beamMinimal27Packages.elixir_1_18;
+            erlang = pkgs.beamMinimal27Packages.erlang;
+          };
           busybox = pkgs.callPackage ./nix/packages/busybox.nix { };
           kernel = pkgs.callPackage ./nix/packages/kernel.nix { inherit mkKernel target; };
           rootfs = pkgs.callPackage ./nix/packages/rootfs.nix {
@@ -97,6 +100,9 @@
             runtime-build = pkgs.callPackage ./nix/checks/runtime-build.nix { inherit runtime; };
             rootfs-build = pkgs.callPackage ./nix/checks/rootfs-build.nix {
               inherit rootfs runtime;
+            };
+            qemu-image-build = pkgs.callPackage ./nix/checks/qemu-image-build.nix {
+              image = qemuImage;
             };
             qemu-boot-smoke = pkgs.callPackage ./nix/checks/qemu-boot-smoke.nix { inherit qemuApp; };
           };

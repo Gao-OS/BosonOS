@@ -1,29 +1,44 @@
-{ runCommand, gnutar, gzip }:
+{
+  runCommand,
+  coreutils,
+  cpio,
+  findutils,
+  gzip,
+}:
 
 {
   name ? "boson-image",
   rootfs,
-  kernel ? null,
+  kernel,
   target,
   profile,
 }:
 
-runCommand name { nativeBuildInputs = [ gnutar gzip ]; } ''
-  mkdir -p "$out"
+runCommand name
+  {
+    nativeBuildInputs = [
+      coreutils
+      cpio
+      findutils
+      gzip
+    ];
+  }
+  ''
+    mkdir -p "$out"
+    install -Dm644 ${kernel}/${target.kernelTarget} "$out/${target.kernelTarget}"
 
-  tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-    -C ${rootfs}/rootfs \
-    -cpf "$out/rootfs.tar" .
-  gzip -n -c "$out/rootfs.tar" > "$out/rootfs.tar.gz"
+    (
+      cd ${rootfs}/rootfs
+      find . -print0 \
+        | sort -z \
+        | cpio --null --create --format=newc --owner=0:0 --reproducible
+    ) | gzip -n > "$out/initramfs.cpio.gz"
 
-  cat > "$out/README" <<README
-  BosonOS image artifact
-
-  Target: ${target.name or "unknown"}
-  Profile: ${profile.name or "unknown"}
-
-  This is a first-milestone QEMU image artifact containing a rootfs tarball.
-  Kernel/initrd boot wiring is intentionally left as a TODO until Gluon and
-  target kernel packaging are hardened.
-  README
-''
+    cat > "$out/manifest.txt" <<MANIFEST
+    format=kernel-initramfs
+    target=${target.name or "unknown"}
+    profile=${profile.name or "unknown"}
+    kernel=${target.kernelTarget}
+    initramfs=initramfs.cpio.gz
+    MANIFEST
+  ''
