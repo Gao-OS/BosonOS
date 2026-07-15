@@ -24,6 +24,17 @@ stdenvNoCC.mkDerivation {
     runHook postBuild
   '';
 
+  doCheck = true;
+
+  checkPhase = ''
+    runHook preCheck
+    zig build test \
+      --cache-dir "$TMPDIR/zig-test-cache" \
+      --global-cache-dir "$ZIG_GLOBAL_CACHE_DIR" \
+      -Doptimize=ReleaseSafe
+    runHook postCheck
+  '';
+
   installPhase = ''
     runHook preInstall
     export ZIG_GLOBAL_CACHE_DIR="$TMPDIR/zig-global-cache"

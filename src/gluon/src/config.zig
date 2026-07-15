@@ -14,7 +14,12 @@ pub const Config = struct {
 
     release_path: []const u8 = "/srv/boson",
     release_bin: []const u8 = "/srv/boson/bin/boson",
-    release_command: []const u8 = "foreground",
+    release_command: []const u8 = "start",
+    release_tmp: []const u8 = "/run/boson",
+    path: []const u8 = "/bin:/sbin",
+    home: []const u8 = "/root",
+    term: []const u8 = "linux",
+    release_distribution: []const u8 = "none",
 
     hostname: []const u8 = "boson",
     console: []const u8 = "/dev/console",
@@ -84,6 +89,16 @@ fn apply(cfg: *Config, key: []const u8, value: []const u8) void {
         cfg.release_bin = value;
     } else if (std.mem.eql(u8, key, "release_command")) {
         cfg.release_command = value;
+    } else if (std.mem.eql(u8, key, "release_tmp")) {
+        cfg.release_tmp = value;
+    } else if (std.mem.eql(u8, key, "path")) {
+        cfg.path = value;
+    } else if (std.mem.eql(u8, key, "home")) {
+        cfg.home = value;
+    } else if (std.mem.eql(u8, key, "term")) {
+        cfg.term = value;
+    } else if (std.mem.eql(u8, key, "release_distribution")) {
+        cfg.release_distribution = value;
     } else if (std.mem.eql(u8, key, "hostname")) {
         cfg.hostname = value;
     } else if (std.mem.eql(u8, key, "console")) {
@@ -123,4 +138,36 @@ fn parsePolicy(value: []const u8, fallback: ExitPolicy) ExitPolicy {
     if (std.mem.eql(u8, value, "hang")) return .hang;
     if (std.mem.eql(u8, value, "emergency_shell")) return .emergency_shell;
     return fallback;
+}
+
+test "default release command starts Mix in the foreground" {
+    const cfg = Config{};
+    try std.testing.expectEqualStrings("start", cfg.release_command);
+}
+
+test "default runtime environment is writable and local" {
+    const cfg = Config{};
+    try std.testing.expectEqualStrings("/run/boson", cfg.release_tmp);
+    try std.testing.expectEqualStrings("/bin:/sbin", cfg.path);
+    try std.testing.expectEqualStrings("/root", cfg.home);
+    try std.testing.expectEqualStrings("linux", cfg.term);
+    try std.testing.expectEqualStrings("none", cfg.release_distribution);
+}
+
+test "runtime environment can be configured" {
+    var cfg = Config{};
+    parse(
+        &cfg,
+        \\release_tmp=/tmp/boson
+        \\path=/custom/bin
+        \\home=/home/boson
+        \\term=vt100
+        \\release_distribution=sname
+    );
+
+    try std.testing.expectEqualStrings("/tmp/boson", cfg.release_tmp);
+    try std.testing.expectEqualStrings("/custom/bin", cfg.path);
+    try std.testing.expectEqualStrings("/home/boson", cfg.home);
+    try std.testing.expectEqualStrings("vt100", cfg.term);
+    try std.testing.expectEqualStrings("sname", cfg.release_distribution);
 }
