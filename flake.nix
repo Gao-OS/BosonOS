@@ -2,7 +2,7 @@
   description = "BosonOS, a Nix-built Linux-hosted BEAM-first operating system substrate";
 
   inputs = {
-    nixpkgs.url = "nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
   };
 
   outputs =
@@ -90,6 +90,9 @@
           };
 
           checks = {
+            flake-portable = pkgs.callPackage ./nix/checks/flake-portable.nix {
+              flakeLock = ./flake.lock;
+            };
             gluon-build = pkgs.callPackage ./nix/checks/gluon-build.nix { inherit gluon; };
             runtime-build = pkgs.callPackage ./nix/checks/runtime-build.nix { inherit runtime; };
             rootfs-build = pkgs.callPackage ./nix/checks/rootfs-build.nix { inherit rootfs; };
