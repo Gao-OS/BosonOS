@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Check Elixir formatting
+        working-directory: src/runtime
+        run: mix format --check-formatted
+
+      - name: Check Zig formatting
+        working-directory: src/gluon
+        run: nix shell nixpkgs#zig_0_15 --command zig fmt --check build.zig src
+
+      - name: Evaluate flake checks
+        run: nix flake check --no-build
+
+  build:
+    name: Build QEMU image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build QEMU release image
+        run: nix build .#boson-qemu-image --print-build-logs

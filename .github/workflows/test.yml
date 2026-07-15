@@ -1,0 +1,57 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    name: Runtime unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: src/runtime
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Run ExUnit tests
+        run: mix test
+
+  gluon:
+    name: Gluon unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Zig tests
+        working-directory: src/gluon
+        run: nix shell nixpkgs#zig_0_15 --command zig build test -Doptimize=ReleaseSafe

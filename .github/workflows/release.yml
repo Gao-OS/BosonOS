@@ -28,13 +28,15 @@ jobs:
     steps:
       - name: Normalize release inputs
         id: release
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ inputs.version }}"
+          version="$VERSION_INPUT"
           version="${version#v}"
-          if [[ -z "$version" ]]; then
-            echo "::error::version must not be empty"
+          if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::version contains unsupported characters"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"

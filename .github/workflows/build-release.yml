@@ -28,15 +28,18 @@ jobs:
     steps:
       - name: Normalize release inputs
         id: release
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          DEVICE_ID_INPUT: ${{ inputs.device_id }}
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ inputs.version }}"
+          version="$VERSION_INPUT"
           version="${version#v}"
-          device_id="${{ inputs.device_id }}"
+          device_id="$DEVICE_ID_INPUT"
 
-          if [[ -z "$version" ]]; then
-            echo "::error::version must not be empty"
+          if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::version contains unsupported characters"
             exit 1
           fi
 
@@ -81,7 +84,6 @@ jobs:
           out_link="result-${{ steps.release.outputs.device_id }}"
 
           nix build ".#${{ steps.release.outputs.package_attr }}" \
-            --override-input nixpkgs github:NixOS/nixpkgs/nixos-unstable \
             --print-build-logs \
             --out-link "$out_link"
 
@@ -89,8 +91,11 @@ jobs:
           tar -C "$out_link" \
             -czf "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
             .
-          sha256sum "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
-            > "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz.sha256"
+          (
+            cd dist
+            sha256sum "${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
+              > "${{ steps.release.outputs.artifact_prefix }}.tar.gz.sha256"
+          )
 
       - name: Upload image to release
         env:
