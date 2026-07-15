@@ -6,13 +6,16 @@ The initial rootfs contains only the early runtime contract:
 - `/sbin/gluon`
 - `/etc/gluon.conf`
 - `/etc/hostname`
-- `/srv/boson`
+- `/srv/boson -> /nix/store/...-boson-runtime-...`
+- The runtime's transitive store closure under `/nix/store`.
 - Standard early mount points.
-- BusyBox applets for rescue and debugging.
+- A static BusyBox and applets for release startup, rescue, and debugging.
 
 The rootfs is assembled by `mkRootfs`. It copies the base tree from
-`rootfs/base`, installs Gluon, installs the OTP release under `/srv/boson`, and
-adds a small BusyBox shell surface.
+`rootfs/base`, installs Gluon and BusyBox, copies the Nix store paths required by
+the OTP release, and links `/srv/boson` to that copied release path.
 
-The rootfs is not a NixOS closure and does not contain an in-target package
+The QEMU image packs this tree as a reproducible `newc` initramfs compressed
+with deterministic gzip settings. The target has store paths because Nix built
+the release, but it has no Nix command, NixOS runtime, or in-target package
 manager.

@@ -6,13 +6,25 @@ Gluon provides:
 
 - A mounted early root filesystem.
 - `/proc`, `/sys`, `/dev`, `/run`, and optionally `/data`.
-- Environment inherited by the runtime release.
+- A controlled runtime environment.
 - Console stdio attached to the configured console.
-- A working directory and release path under `/srv/boson`.
+- `/srv/boson` as the runtime working directory.
+- A dedicated process group for signal forwarding.
+
+The default environment contract is:
+
+```text
+PATH=/bin:/sbin
+HOME=/root
+TERM=linux
+LANG=C.UTF-8
+RELEASE_TMP=/run/boson
+RELEASE_DISTRIBUTION=none
+```
 
 The runtime provides:
 
-- A foreground release command that remains alive.
+- A single long-lived release process that remains attached to Gluon.
 - OTP supervision for BosonOS services.
 - Logging to stdout/stderr or the configured console.
 - Clean exit when the system should apply `on_exit`.
@@ -21,5 +33,8 @@ The runtime provides:
 The default release command is:
 
 ```text
-/srv/boson/bin/boson foreground
+/srv/boson/bin/boson start
 ```
+
+The release must remain attached to Gluon. A normal exit selects `on_exit`; a
+non-zero exit or failed launch selects `on_crash`.

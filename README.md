@@ -26,7 +26,18 @@ BEAM / OTP release
 BosonOS runtime supervision tree
 ```
 
-## Initial Commands
+## Bootable Target
+
+`qemu-x86_64` is the first bootable BosonOS target. Its image contains a
+nixpkgs Linux `bzImage`, a compressed initramfs, and a manifest. The initramfs
+boots Gluon as PID 1, and Gluon starts the Boson OTP release.
+
+The runtime closure is copied into the image under `/nix/store`, but the target
+contains no Nix executable, NixOS module system, or package manager.
+
+RK3566 targets and board definitions remain structural bring-up scaffolding.
+
+## Build And Run
 
 ```bash
 nix build .#gluon
@@ -37,8 +48,13 @@ nix run .#qemu
 nix flake check
 ```
 
-The first milestone prioritizes a clean repository skeleton and build graph.
-QEMU kernel boot and RK3566 images are intentionally marked as TODO stubs.
+`nix run .#qemu` starts a headless QEMU TCG guest with 1 GiB of memory. The
+`qemu-boot-smoke` flake check requires both `gluon info: starting` and
+`Boson.Boot online` on the serial console.
+
+Manual releases use three separate workflows: `Release` creates the GitHub
+release page, `Build Release Image` builds and uploads a selected device image,
+and `E2E` downloads and boots the released QEMU artifact.
 
 ## Constraints
 
