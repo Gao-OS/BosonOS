@@ -19,6 +19,7 @@ pub const Config = struct {
     path: []const u8 = "/bin:/sbin",
     home: []const u8 = "/root",
     term: []const u8 = "linux",
+    lang: []const u8 = "C.UTF-8",
     release_distribution: []const u8 = "none",
 
     hostname: []const u8 = "boson",
@@ -97,6 +98,8 @@ fn apply(cfg: *Config, key: []const u8, value: []const u8) void {
         cfg.home = value;
     } else if (std.mem.eql(u8, key, "term")) {
         cfg.term = value;
+    } else if (std.mem.eql(u8, key, "lang")) {
+        cfg.lang = value;
     } else if (std.mem.eql(u8, key, "release_distribution")) {
         cfg.release_distribution = value;
     } else if (std.mem.eql(u8, key, "hostname")) {
@@ -151,6 +154,7 @@ test "default runtime environment is writable and local" {
     try std.testing.expectEqualStrings("/bin:/sbin", cfg.path);
     try std.testing.expectEqualStrings("/root", cfg.home);
     try std.testing.expectEqualStrings("linux", cfg.term);
+    try std.testing.expectEqualStrings("C.UTF-8", cfg.lang);
     try std.testing.expectEqualStrings("none", cfg.release_distribution);
 }
 
@@ -161,6 +165,7 @@ test "runtime environment can be configured" {
         \\path=/custom/bin
         \\home=/home/boson
         \\term=vt100
+        \\lang=en_US.UTF-8
         \\release_distribution=sname
     );
 
@@ -168,5 +173,6 @@ test "runtime environment can be configured" {
     try std.testing.expectEqualStrings("/custom/bin", cfg.path);
     try std.testing.expectEqualStrings("/home/boson", cfg.home);
     try std.testing.expectEqualStrings("vt100", cfg.term);
+    try std.testing.expectEqualStrings("en_US.UTF-8", cfg.lang);
     try std.testing.expectEqualStrings("sname", cfg.release_distribution);
 }

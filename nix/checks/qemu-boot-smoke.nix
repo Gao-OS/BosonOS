@@ -5,4 +5,5 @@ runCommand "boson-qemu-runner-smoke" { } ''
   ${qemuApp}/bin/boson-qemu --smoke-test > "$out/console.log"
   grep -Fq 'gluon info: starting' "$out/console.log"
   grep -Fq 'Boson.Boot online' "$out/console.log"
+  ! grep -Fq 'native name encoding of latin1' "$out/console.log"
 ''

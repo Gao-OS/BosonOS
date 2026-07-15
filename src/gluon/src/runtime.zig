@@ -35,6 +35,7 @@ fn applyEnvironment(env_map: *std.process.EnvMap, cfg: config.Config) !void {
     try env_map.put("PATH", cfg.path);
     try env_map.put("HOME", cfg.home);
     try env_map.put("TERM", cfg.term);
+    try env_map.put("LANG", cfg.lang);
     try env_map.put("RELEASE_TMP", cfg.release_tmp);
     try env_map.put("RELEASE_DISTRIBUTION", cfg.release_distribution);
 }
@@ -102,6 +103,7 @@ test "runtime environment applies the init contract" {
     try std.testing.expectEqualStrings("/bin:/sbin", env_map.get("PATH").?);
     try std.testing.expectEqualStrings("/root", env_map.get("HOME").?);
     try std.testing.expectEqualStrings("linux", env_map.get("TERM").?);
+    try std.testing.expectEqualStrings("C.UTF-8", env_map.get("LANG").?);
     try std.testing.expectEqualStrings("/run/boson", env_map.get("RELEASE_TMP").?);
     try std.testing.expectEqualStrings("none", env_map.get("RELEASE_DISTRIBUTION").?);
 }
