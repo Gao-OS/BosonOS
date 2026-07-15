@@ -156,8 +156,7 @@ test "default runtime environment is writable and local" {
 
 test "runtime environment can be configured" {
     var cfg = Config{};
-    parse(
-        &cfg,
+    parse(&cfg,
         \\release_tmp=/tmp/boson
         \\path=/custom/bin
         \\home=/home/boson
