@@ -1,3 +1,3 @@
-{ busybox }:
+{ pkgsStatic }:
 
-busybox
+pkgsStatic.busybox

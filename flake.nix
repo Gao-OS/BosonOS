@@ -95,7 +95,9 @@
             };
             gluon-build = pkgs.callPackage ./nix/checks/gluon-build.nix { inherit gluon; };
             runtime-build = pkgs.callPackage ./nix/checks/runtime-build.nix { inherit runtime; };
-            rootfs-build = pkgs.callPackage ./nix/checks/rootfs-build.nix { inherit rootfs; };
+            rootfs-build = pkgs.callPackage ./nix/checks/rootfs-build.nix {
+              inherit rootfs runtime;
+            };
             qemu-boot-smoke = pkgs.callPackage ./nix/checks/qemu-boot-smoke.nix { inherit qemuApp; };
           };
         };
