@@ -12,7 +12,7 @@
   defaultConsole = "ttyAMA0,115200";
   qemuBinary = "qemu-system-aarch64";
   qemuMachine = "virt,accel=tcg";
-  qemuCpu = "max";
+  qemuCpu = "cortex-a57";
   commonCmdline = [
     "console=ttyAMA0,115200"
     "panic=5"

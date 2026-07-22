@@ -32,12 +32,14 @@ case "$device_id" in
   qemu-x86_64)
     kernel="bzImage"
     qemu_binary="qemu-system-x86_64"
+    qemu_cpu="max"
     machine="q35,accel=tcg"
     console="ttyS0,115200"
     ;;
   qemu-aarch64)
     kernel="Image"
     qemu_binary="qemu-system-aarch64"
+    qemu_cpu="cortex-a57"
     machine="virt,accel=tcg"
     console="ttyAMA0,115200"
     ;;
@@ -64,8 +66,8 @@ mkdir -p "$extract_dir"
 tar -xzf "$archive" -C "$extract_dir"
 cd "$extract_dir"
 
-printf 'kernel=%s qemu=%s machine=%s console=%s\n' \
-  "$kernel" "$qemu_binary" "$machine" "$console"
+printf 'kernel=%s qemu=%s cpu=%s machine=%s console=%s\n' \
+  "$kernel" "$qemu_binary" "$qemu_cpu" "$machine" "$console"
 ```
 
 ## Run with QEMU
@@ -96,7 +98,7 @@ qemu-system-x86_64 \
 ```bash
 qemu-system-aarch64 \
   -machine virt,accel=tcg \
-  -cpu max \
+  -cpu cortex-a57 \
   -smp 2 \
   -m 1024M \
   -nodefaults \

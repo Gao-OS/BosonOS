@@ -36,6 +36,7 @@ jobs:
       kernel: ${{ steps.target.outputs.kernel }}
       qemu_package: ${{ steps.target.outputs.qemu_package }}
       qemu_binary: ${{ steps.target.outputs.qemu_binary }}
+      qemu_cpu: ${{ steps.target.outputs.qemu_cpu }}
       machine: ${{ steps.target.outputs.machine }}
       console: ${{ steps.target.outputs.console }}
 
@@ -63,6 +64,7 @@ jobs:
               kernel="bzImage"
               qemu_package="qemu-system-x86"
               qemu_binary="qemu-system-x86_64"
+              qemu_cpu="max"
               machine="pc,accel=tcg"
               console="ttyS0,115200"
               ;;
@@ -71,6 +73,7 @@ jobs:
               kernel="Image"
               qemu_package="qemu-system-arm"
               qemu_binary="qemu-system-aarch64"
+              qemu_cpu="cortex-a57"
               machine="virt,accel=tcg"
               console="ttyAMA0,115200"
               ;;
@@ -91,6 +94,7 @@ jobs:
             echo "kernel=$kernel"
             echo "qemu_package=$qemu_package"
             echo "qemu_binary=$qemu_binary"
+            echo "qemu_cpu=$qemu_cpu"
             echo "machine=$machine"
             echo "console=$console"
           } >> "$GITHUB_OUTPUT"
@@ -148,6 +152,7 @@ jobs:
         env:
           KERNEL: ${{ needs.select-target.outputs.kernel }}
           QEMU_BINARY: ${{ needs.select-target.outputs.qemu_binary }}
+          QEMU_CPU: ${{ needs.select-target.outputs.qemu_cpu }}
           MACHINE: ${{ needs.select-target.outputs.machine }}
           CONSOLE: ${{ needs.select-target.outputs.console }}
         shell: bash
@@ -158,7 +163,7 @@ jobs:
           timeout --signal=TERM --kill-after=10s 120s \
             "$QEMU_BINARY" \
               -machine "$MACHINE" \
-              -cpu max \
+              -cpu "$QEMU_CPU" \
               -smp 2 \
               -m 1024M \
               -nodefaults \
