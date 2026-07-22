@@ -48,11 +48,31 @@ jobs:
           ref: ${{ inputs.git_ref }}
           fetch-depth: 0
 
+      - name: Render release notes
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed \
+            -e "s|__VERSION__|$VERSION|g" \
+            -e "s|__TAG__|$TAG|g" \
+            -e "s|__REPOSITORY__|$GITHUB_REPOSITORY|g" \
+            .github/release-notes.md > "$RELEASE_NOTES_FILE"
+
+          if grep -Eq '__[A-Z_]+__' "$RELEASE_NOTES_FILE"; then
+            echo "::error::release notes contain unresolved placeholders"
+            exit 1
+          fi
+
       - name: Create release page
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
           GIT_REF: ${{ inputs.git_ref }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
         shell: bash
         run: |
           set -euo pipefail
@@ -62,7 +82,9 @@ jobs:
             exit 1
           fi
 
+          release_notes="$(<"$RELEASE_NOTES_FILE")"
           gh release create "$TAG" \
             --target "$GIT_REF" \
             --title "$TAG" \
-            --generate-notes
+            --generate-notes \
+            --notes "$release_notes"
