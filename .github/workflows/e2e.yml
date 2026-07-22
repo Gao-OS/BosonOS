@@ -161,7 +161,10 @@ jobs:
               -cpu max \
               -smp 2 \
               -m 1024M \
-              -nographic \
+              -nodefaults \
+              -serial stdio \
+              -display none \
+              -monitor none \
               -no-reboot \
               -kernel "image/$KERNEL" \
               -initrd image/initramfs.cpio.gz \
