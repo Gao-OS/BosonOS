@@ -20,6 +20,7 @@ stdenvNoCC.mkDerivation {
     zig build \
       --cache-dir "$TMPDIR/zig-cache" \
       --global-cache-dir "$ZIG_GLOBAL_CACHE_DIR" \
+      -Dcpu=baseline \
       -Doptimize=ReleaseSafe
     runHook postBuild
   '';
@@ -31,6 +32,7 @@ stdenvNoCC.mkDerivation {
     zig build test \
       --cache-dir "$TMPDIR/zig-test-cache" \
       --global-cache-dir "$ZIG_GLOBAL_CACHE_DIR" \
+      -Dcpu=baseline \
       -Doptimize=ReleaseSafe
     runHook postCheck
   '';
@@ -41,6 +43,7 @@ stdenvNoCC.mkDerivation {
     zig build \
       --cache-dir "$TMPDIR/zig-cache" \
       --global-cache-dir "$ZIG_GLOBAL_CACHE_DIR" \
+      -Dcpu=baseline \
       -Doptimize=ReleaseSafe \
       --prefix "$out"
     mkdir -p "$out/sbin"
