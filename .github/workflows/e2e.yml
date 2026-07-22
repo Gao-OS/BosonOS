@@ -7,51 +7,110 @@ on:
         description: "Released BosonOS version to boot (for example, 0.1.0 or v0.1.0)"
         required: true
         type: string
+      device_id:
+        description: "Released QEMU device image to boot"
+        required: true
+        default: "qemu-x86_64"
+        type: choice
+        options:
+          - qemu-x86_64
+          - qemu-aarch64
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.version }}
+  group: ${{ github.workflow }}-${{ inputs.version }}-${{ inputs.device_id }}
   cancel-in-progress: true
 
 jobs:
+  select-target:
+    name: Select released QEMU target
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.target.outputs.tag }}
+      device_id: ${{ steps.target.outputs.device_id }}
+      runner: ${{ steps.target.outputs.runner }}
+      archive: ${{ steps.target.outputs.archive }}
+      checksum: ${{ steps.target.outputs.checksum }}
+      kernel: ${{ steps.target.outputs.kernel }}
+      qemu_package: ${{ steps.target.outputs.qemu_package }}
+      qemu_binary: ${{ steps.target.outputs.qemu_binary }}
+      machine: ${{ steps.target.outputs.machine }}
+      console: ${{ steps.target.outputs.console }}
+
+    steps:
+      - name: Normalize release inputs
+        id: target
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          DEVICE_ID_INPUT: ${{ inputs.device_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${VERSION_INPUT#v}"
+          device_id="$DEVICE_ID_INPUT"
+
+          if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::version contains unsupported characters"
+            exit 1
+          fi
+
+          case "$device_id" in
+            qemu-x86_64)
+              runner="ubuntu-24.04"
+              kernel="bzImage"
+              qemu_package="qemu-system-x86"
+              qemu_binary="qemu-system-x86_64"
+              machine="pc,accel=tcg"
+              console="ttyS0,115200"
+              ;;
+            qemu-aarch64)
+              runner="ubuntu-24.04-arm"
+              kernel="Image"
+              qemu_package="qemu-system-arm"
+              qemu_binary="qemu-system-aarch64"
+              machine="virt,accel=tcg"
+              console="ttyAMA0,115200"
+              ;;
+            *)
+              echo "::error::Unsupported device_id '$device_id'"
+              echo "Supported device ids: qemu-x86_64, qemu-aarch64"
+              exit 1
+              ;;
+          esac
+
+          archive="bosonos-$device_id-v$version.tar.gz"
+          {
+            echo "tag=v$version"
+            echo "device_id=$device_id"
+            echo "runner=$runner"
+            echo "archive=$archive"
+            echo "checksum=$archive.sha256"
+            echo "kernel=$kernel"
+            echo "qemu_package=$qemu_package"
+            echo "qemu_binary=$qemu_binary"
+            echo "machine=$machine"
+            echo "console=$console"
+          } >> "$GITHUB_OUTPUT"
+
   qemu-boot:
     name: Boot released QEMU image
-    runs-on: ubuntu-latest
+    needs: select-target
+    runs-on: ${{ needs.select-target.outputs.runner }}
     timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Normalize release input
-        id: release
-        env:
-          VERSION_INPUT: ${{ inputs.version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          version="${VERSION_INPUT#v}"
-          if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
-            echo "::error::version contains unsupported characters"
-            exit 1
-          fi
-
-          artifact="bosonos-qemu-x86_64-v$version.tar.gz"
-          {
-            echo "tag=v$version"
-            echo "archive=$artifact"
-            echo "checksum=$artifact.sha256"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Download release image
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          ARCHIVE: ${{ steps.release.outputs.archive }}
-          CHECKSUM: ${{ steps.release.outputs.checksum }}
+          TAG: ${{ needs.select-target.outputs.tag }}
+          ARCHIVE: ${{ needs.select-target.outputs.archive }}
+          CHECKSUM: ${{ needs.select-target.outputs.checksum }}
         shell: bash
         run: |
           set -euo pipefail
@@ -64,41 +123,49 @@ jobs:
 
       - name: Verify and extract image
         env:
-          ARCHIVE: ${{ steps.release.outputs.archive }}
-          CHECKSUM: ${{ steps.release.outputs.checksum }}
+          ARCHIVE: ${{ needs.select-target.outputs.archive }}
+          CHECKSUM: ${{ needs.select-target.outputs.checksum }}
+          KERNEL: ${{ needs.select-target.outputs.kernel }}
         shell: bash
         run: |
           set -euo pipefail
           (cd dist && sha256sum --check "$CHECKSUM")
           mkdir -p image
           tar -xzf "dist/$ARCHIVE" -C image
-          test -s image/bzImage
+          test -s "image/$KERNEL"
           test -s image/initramfs.cpio.gz
 
       - name: Install QEMU
+        env:
+          QEMU_PACKAGE: ${{ needs.select-target.outputs.qemu_package }}
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends qemu-system-x86
+          sudo apt-get install --yes --no-install-recommends "$QEMU_PACKAGE"
 
       - name: Boot image and verify runtime
+        env:
+          KERNEL: ${{ needs.select-target.outputs.kernel }}
+          QEMU_BINARY: ${{ needs.select-target.outputs.qemu_binary }}
+          MACHINE: ${{ needs.select-target.outputs.machine }}
+          CONSOLE: ${{ needs.select-target.outputs.console }}
         shell: bash
         run: |
           set -euo pipefail
 
           log="$RUNNER_TEMP/boson-qemu-console.log"
           timeout --signal=TERM --kill-after=10s 120s \
-            qemu-system-x86_64 \
-              -machine pc,accel=tcg \
+            "$QEMU_BINARY" \
+              -machine "$MACHINE" \
               -cpu max \
               -smp 2 \
               -m 1024M \
               -nographic \
               -no-reboot \
-              -kernel image/bzImage \
+              -kernel "image/$KERNEL" \
               -initrd image/initramfs.cpio.gz \
-              -append "console=ttyS0,115200 rdinit=/sbin/gluon panic=1" \
+              -append "console=$CONSOLE rdinit=/sbin/gluon panic=1" \
             >"$log" 2>&1 &
           qemu_pid=$!
 
@@ -134,7 +201,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-console-${{ steps.release.outputs.tag }}
+          name: qemu-console-${{ needs.select-target.outputs.device_id }}-${{ needs.select-target.outputs.tag }}
           path: qemu-console.log
           if-no-files-found: warn
           retention-days: 14
