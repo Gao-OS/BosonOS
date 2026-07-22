@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       device_id:
-        description: "Device id to build: qemu-x86_64 or rk3566-powkiddy-rgb30"
+        description: "Device id to build: qemu-x86_64 or qemu-aarch64"
         required: true
         default: "qemu-x86_64"
         type: string
@@ -21,9 +21,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-release:
-    name: Build and Upload Image
-    runs-on: ubuntu-latest
+  select-target:
+    name: Select Release Target
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      device_id: ${{ steps.release.outputs.device_id }}
+      package_attr: ${{ steps.release.outputs.package_attr }}
+      artifact_prefix: ${{ steps.release.outputs.artifact_prefix }}
+      runner: ${{ steps.release.outputs.runner }}
 
     steps:
       - name: Normalize release inputs
@@ -45,14 +52,16 @@ jobs:
 
           case "$device_id" in
             qemu-x86_64)
+              runner="ubuntu-24.04"
               package_attr="boson-qemu-image"
               ;;
-            rk3566-powkiddy-rgb30)
-              package_attr="rk3566-powkiddy-rgb30-image"
+            qemu-aarch64)
+              runner="ubuntu-24.04-arm"
+              package_attr="boson-qemu-image"
               ;;
             *)
               echo "::error::Unsupported device_id '$device_id'"
-              echo "Supported device ids: qemu-x86_64, rk3566-powkiddy-rgb30"
+              echo "Supported device ids: qemu-x86_64, qemu-aarch64"
               exit 1
               ;;
           esac
@@ -63,12 +72,19 @@ jobs:
             echo "device_id=$device_id"
             echo "package_attr=$package_attr"
             echo "artifact_prefix=bosonos-$device_id-v$version"
+            echo "runner=$runner"
           } >> "$GITHUB_OUTPUT"
 
+  build-release:
+    name: Build and Upload Image
+    needs: select-target
+    runs-on: ${{ needs.select-target.outputs.runner }}
+
+    steps:
       - name: Checkout release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ needs.select-target.outputs.tag }}
           fetch-depth: 0
 
       - name: Install Nix
@@ -81,26 +97,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          out_link="result-${{ steps.release.outputs.device_id }}"
+          out_link="result-${{ needs.select-target.outputs.device_id }}"
 
-          nix build ".#${{ steps.release.outputs.package_attr }}" \
+          nix build ".#${{ needs.select-target.outputs.package_attr }}" \
             --print-build-logs \
             --out-link "$out_link"
 
           mkdir -p dist
           tar -C "$out_link" \
-            -czf "dist/${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
+            -czf "dist/${{ needs.select-target.outputs.artifact_prefix }}.tar.gz" \
             .
           (
             cd dist
-            sha256sum "${{ steps.release.outputs.artifact_prefix }}.tar.gz" \
-              > "${{ steps.release.outputs.artifact_prefix }}.tar.gz.sha256"
+            sha256sum "${{ needs.select-target.outputs.artifact_prefix }}.tar.gz" \
+              > "${{ needs.select-target.outputs.artifact_prefix }}.tar.gz.sha256"
           )
 
       - name: Upload image to release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
+          TAG: ${{ needs.select-target.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail

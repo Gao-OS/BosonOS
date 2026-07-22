@@ -44,8 +44,18 @@ jobs:
         run: nix flake check --no-build
 
   build:
-    name: Build QEMU image
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }} image
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+            target: qemu-x86_64
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+            target: qemu-aarch64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
 
     steps:
@@ -57,5 +67,9 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build QEMU release image
-        run: nix build .#boson-qemu-image --print-build-logs
+      - name: Build and smoke-test QEMU image
+        run: |
+          nix build \
+            ".#packages.${{ matrix.system }}.boson-qemu-image" \
+            ".#checks.${{ matrix.system }}.qemu-boot-smoke" \
+            --print-build-logs
