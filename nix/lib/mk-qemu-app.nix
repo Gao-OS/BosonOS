@@ -19,8 +19,8 @@ writeShellApplication {
   ];
   text = ''
     qemu_args=(
-      -machine "q35,accel=tcg"
-      -cpu max
+      -machine "${target.qemuMachine}"
+      -cpu "${target.qemuCpu}"
       -smp 2
       -m 1024M
       -nodefaults
@@ -34,7 +34,7 @@ writeShellApplication {
     )
 
     if [[ "''${1:-}" != "--smoke-test" ]]; then
-      exec qemu-system-x86_64 "''${qemu_args[@]}" "$@"
+      exec ${target.qemuBinary} "''${qemu_args[@]}" "$@"
     fi
 
     if (( $# != 1 )); then
@@ -53,7 +53,7 @@ writeShellApplication {
     }
     trap cleanup EXIT INT TERM
 
-    qemu-system-x86_64 "''${qemu_args[@]}" >"$log" 2>&1 &
+    ${target.qemuBinary} "''${qemu_args[@]}" >"$log" 2>&1 &
     qemu_pid=$!
 
     booted=false

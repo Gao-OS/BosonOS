@@ -8,15 +8,27 @@
   outputs =
     { nixpkgs, ... }:
     let
-      supportedSystems = [ "x86_64-linux" ];
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       systemScope =
         system:
         let
+          targetModules = {
+            x86_64-linux = ./nix/targets/qemu/x86_64.nix;
+            aarch64-linux = ./nix/targets/qemu/aarch64.nix;
+          };
+          imageModules = {
+            x86_64-linux = ./nix/images/qemu-x86_64.nix;
+            aarch64-linux = ./nix/images/qemu-aarch64.nix;
+          };
+
           pkgs = import nixpkgs { inherit system; };
 
-          target = import ./nix/targets/qemu/x86_64.nix { inherit (pkgs) lib; };
+          target = import targetModules.${system} { inherit (pkgs) lib; };
           profile = import ./nix/profiles/minimal-beam.nix { inherit (pkgs) lib; };
 
           mkBosonSystem = pkgs.callPackage ./nix/lib/mk-boson-system.nix { };
@@ -40,7 +52,7 @@
               busybox
               ;
           };
-          qemuImage = pkgs.callPackage ./nix/images/qemu-x86_64.nix {
+          qemuImage = pkgs.callPackage imageModules.${system} {
             inherit
               mkImage
               rootfs
@@ -102,6 +114,7 @@
               inherit rootfs runtime;
             };
             qemu-image-build = pkgs.callPackage ./nix/checks/qemu-image-build.nix {
+              inherit target;
               image = qemuImage;
             };
             qemu-boot-smoke = pkgs.callPackage ./nix/checks/qemu-boot-smoke.nix { inherit qemuApp; };
