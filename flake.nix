@@ -67,6 +67,29 @@
             inherit target;
           };
 
+          lifecycleRuntime = pkgs.callPackage ./nix/packages/runtime.nix {
+            elixir = pkgs.beamMinimal27Packages.elixir_1_18;
+            erlang = pkgs.beamMinimal27Packages.erlang;
+            lifecycleTestAction = "poweroff";
+          };
+          lifecycleRootfs = pkgs.callPackage ./nix/packages/rootfs.nix {
+            inherit mkRootfs gluon busybox;
+            runtime = lifecycleRuntime;
+          };
+          lifecycleImage = pkgs.callPackage imageModules.${system} {
+            inherit
+              mkImage
+              kernel
+              target
+              profile
+              ;
+            rootfs = lifecycleRootfs;
+          };
+          lifecycleQemuApp = mkQemuApp {
+            image = lifecycleImage;
+            inherit target;
+          };
+
           bosonSystem = mkBosonSystem {
             inherit
               target
@@ -118,6 +141,9 @@
               image = qemuImage;
             };
             qemu-boot-smoke = pkgs.callPackage ./nix/checks/qemu-boot-smoke.nix { inherit qemuApp; };
+            qemu-lifecycle-smoke = pkgs.callPackage ./nix/checks/qemu-lifecycle-smoke.nix {
+              qemuApp = lifecycleQemuApp;
+            };
           };
         };
     in
