@@ -3,6 +3,7 @@
   stdenvNoCC,
   elixir,
   erlang,
+  lifecycleTestAction ? null,
 }:
 
 stdenvNoCC.mkDerivation {
@@ -28,9 +29,22 @@ stdenvNoCC.mkDerivation {
     export ELIXIR_ERL_OPTIONS="+fnu"
     mkdir -p "$HOME" "$MIX_HOME" "$HEX_HOME" "$REBAR_CACHE_DIR"
 
+    ${lib.optionalString (lifecycleTestAction != null) ''
+      export BOSON_LIFECYCLE_TEST_ACTION=${lib.escapeShellArg lifecycleTestAction}
+    ''}
     mix compile --no-deps-check
     mix release --overwrite --path "$out"
     runHook postBuild
+  '';
+
+  doCheck = true;
+
+  checkPhase = ''
+    runHook preCheck
+    export MIX_ENV=test
+    unset BOSON_LIFECYCLE_TEST_ACTION
+    mix test
+    runHook postCheck
   '';
 
   installPhase = ''
