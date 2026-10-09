@@ -38,10 +38,10 @@ jobs:
 
       - name: Check Zig formatting
         working-directory: src/gluon
-        run: nix shell nixpkgs#zig_0_15 --command zig fmt --check build.zig src
+        run: nix shell --inputs-from ../.. nixpkgs#zig_0_15 --command zig fmt --check build.zig src
 
       - name: Evaluate flake checks
-        run: nix flake check --no-build
+        run: nix flake check --all-systems --no-build
 
   build:
     name: Build ${{ matrix.target }} image
@@ -72,4 +72,5 @@ jobs:
           nix build \
             ".#packages.${{ matrix.system }}.boson-qemu-image" \
             ".#checks.${{ matrix.system }}.qemu-boot-smoke" \
+            ".#checks.${{ matrix.system }}.qemu-lifecycle-smoke" \
             --print-build-logs

@@ -65,7 +65,7 @@ jobs:
               qemu_package="qemu-system-x86"
               qemu_binary="qemu-system-x86_64"
               qemu_cpu="max"
-              machine="pc,accel=tcg"
+              machine="q35,accel=tcg"
               console="ttyS0,115200"
               ;;
             qemu-aarch64)
@@ -186,7 +186,7 @@ jobs:
           booted=false
           for _ in $(seq 1 90); do
             if grep --fixed-strings --quiet "gluon info: starting" "$log" \
-              && grep --fixed-strings --quiet "Boson.Boot online" "$log"; then
+              && grep --fixed-strings --quiet "Boson.Runtime ready" "$log"; then
               booted=true
               break
             fi
@@ -197,11 +197,22 @@ jobs:
             sleep 1
           done
 
+          if [[ "$booted" == true ]]; then
+            for _ in $(seq 1 10); do
+              sleep 1
+              if ! kill -0 "$qemu_pid" 2>/dev/null \
+                || grep -Eq 'Boson\.Runtime unavailable|gluon error:|Kernel panic' "$log"; then
+                booted=false
+                break
+              fi
+            done
+          fi
+
           cp "$log" qemu-console.log
           cat "$log"
 
           if [[ "$booted" != true ]]; then
-            echo "::error::BosonOS did not reach the runtime boot marker"
+            echo "::error::BosonOS did not remain ready for ten seconds"
             exit 1
           fi
 
