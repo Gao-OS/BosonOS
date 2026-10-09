@@ -1,4 +1,5 @@
 test {
+    _ = @import("action.zig");
     _ = @import("cmdline.zig");
     _ = @import("config.zig");
     _ = @import("console.zig");
