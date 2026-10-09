@@ -115,8 +115,18 @@ Successful boot reaches both serial markers:
 
 ```text
 gluon info: starting
-Boson.Boot online
+Boson.Runtime ready
 ```
+
+Readiness requires all five runtime components to finish initialization and
+report ready. CI and released-artifact E2E observe ten stable seconds afterward,
+rejecting component-unavailable, Gluon-error, and kernel-panic markers.
+
+The BEAM runtime can request reboot or poweroff through the internal atomic
+`/run/boson/action` protocol. Gluon consumes the exact bounded payload after a
+clean release exit, removes it, and performs the machine action. Crash status
+always takes precedence. Published images keep running after readiness; only
+the private lifecycle check image requests automatic poweroff.
 
 Press `Ctrl+C` to stop QEMU.
 
@@ -161,4 +171,6 @@ The UTM path is currently experimental and is not exercised by BosonOS CI.
 
 - The root filesystem is an ephemeral initramfs.
 - There is no installer or persistent system disk in this release.
-- Boson runtime services are initial OTP supervision stubs.
+- Bus, Device, Net, Console, and Update participate in the lifecycle contract
+  but have no control-bus, hardware, network, console, or update implementation.
+- Persistent `/data`, OTA, and RK3566 hardware boot remain outside this release.

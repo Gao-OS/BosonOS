@@ -62,8 +62,19 @@ nix build .#packages.aarch64-linux.boson-qemu-image
 The flake exposes the same package, app, and check names for `x86_64-linux` and
 `aarch64-linux`. `nix run .#qemu` selects the app for the host system and starts
 a headless QEMU TCG guest with 1 GiB of memory. The `qemu-boot-smoke` flake
-check requires both `gluon info: starting` and `Boson.Boot online` on the serial
-console.
+check requires both `gluon info: starting` and `Boson.Runtime ready` on the
+serial console, then observes ten seconds of stable readiness. `Boson.Boot`
+emits readiness only after Bus, Device, Net, Console, and Update have initialized
+and reported ready; component loss removes readiness until OTP recovers it.
+
+The `qemu-lifecycle-smoke` check boots a private poweroff image, proves the
+ordered ready, stopping, and Gluon action markers, and requires QEMU to exit
+normally. Normal packages and release images keep running after readiness.
+
+```bash
+nix build .#checks.x86_64-linux.qemu-boot-smoke
+nix build .#checks.x86_64-linux.qemu-lifecycle-smoke
+```
 
 Manual releases use three separate workflows: `Release` creates the GitHub
 release page, `Build Release Image` builds and uploads the selected `device_id`,
@@ -75,3 +86,7 @@ workflows require both `version` and `device_id`.
 The target runtime must not grow into NixOS, systemd, D-Bus, NetworkManager, a
 desktop stack, or an in-target package manager. Nix remains the host-side build
 system. The target control plane belongs in the OTP supervision tree.
+
+Persistent `/data`, OTA, real device services, and RK3566 hardware boot are
+outside the v0.0.3 lifecycle milestone. The five runtime components participate
+in readiness but remain service stubs.
